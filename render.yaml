@@ -1,0 +1,81 @@
+databases:
+  - name: espocrm-db
+    databaseName: espocrm
+    user: espocrm
+    ipAllowList: [] # Allow access from all IPs (adjust as needed for security)
+    plan: starter # Choose an appropriate plan (starter, standard, etc.)
+
+services:
+  - type: web
+    name: espocrm
+    env: docker
+    repo: https://docker.io/espocrm/espocrm # Replace with your repo if customized
+    plan: starter # Choose an appropriate plan
+    dockerCommand: "" # Default entrypoint; override if needed
+    envVars:
+      - key: ESPOCRM_DATABASE_PLATFORM
+        value: Mysql
+      - key: ESPOCRM_DATABASE_HOST
+        fromDatabase:
+          name: espocrm-db
+          property: host
+      - key: ESPOCRM_DATABASE_USER
+        fromDatabase:
+          name: espocrm-db
+          property: user
+      - key: ESPOCRM_DATABASE_PASSWORD
+        fromDatabase:
+          name: espocrm-db
+          property: password
+      - key: ESPOCRM_ADMIN_USERNAME
+        value: admin
+      - key: ESPOCRM_ADMIN_PASSWORD
+        value: password
+      - key: ESPOCRM_SITE_URL
+        value: http://localhost:8080 # Update to your Render service URL post-deployment
+    disk:
+      name: espocrm
+      mountPath: /var/www/html
+      sizeGB: 1 # Adjust size as needed
+    numInstances: 1
+    healthCheckPath: /health # Adjust if EspoCRM has a specific health check endpoint
+    region: oregon # Choose your region (e.g., oregon, frankfurt)
+    autoDeploy: false # Set to true if you want automatic deployments
+
+  - type: worker
+    name: espocrm-daemon
+    env: docker
+    repo: https://docker.io/espocrm/espocrm # Replace with your repo if customized
+    plan: starter # Choose an appropriate plan
+    dockerCommand: docker-daemon.sh # Assumes docker-daemon.sh is available in the image
+    disk:
+      name: espocrm
+      mountPath: /var/www/html
+      sizeGB: 1 # Adjust size as needed
+    numInstances: 1
+    region: oregon # Match the region of the main service
+    autoDeploy: false
+
+  - type: web
+    name: espocrm-websocket
+    env: docker
+    repo: https://docker.io/espocrm/espocrm # Replace with your repo if customized
+    plan: starter # Choose an appropriate plan
+    dockerCommand: docker-websocket.sh # Assumes docker-websocket.sh is available in the image
+    envVars:
+      - key: ESPOCRM_CONFIG_USE_WEB_SOCKET
+        value: "true"
+      - key: ESPOCRM_CONFIG_WEB_SOCKET_URL
+        value: ws://localhost:8081 # Update to your Render service URL post-deployment
+      - key: ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBSCRIBER_DSN
+        value: tcp://*:7777
+      - key: ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBMISSION_DSN
+        value: tcp://espocrm-websocket:7777
+    disk:
+      name: espocrm
+      mountPath: /var/www/html
+      sizeGB: 1 # Adjust size as needed
+    numInstances: 1
+    region: oregon # Match the region of the main service
+    autoDeploy: false
+    healthCheckPath: /health # Adjust if EspoCRM has a specific health check endpoint
